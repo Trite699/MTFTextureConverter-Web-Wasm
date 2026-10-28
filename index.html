@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MT Framework TEX ↔ PNG Converter (WASM)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg-primary:#fff;--bg-secondary:#f5f5f5;--bg-success:#e6f9ee;--bg-danger:#fdecea;--bg-warn:#fff8e1;
+  --text-primary:#111;--text-secondary:#666;--text-tertiary:#aaa;
+  --text-success:#1a7a3f;--text-danger:#b71c1c;--text-warn:#7a5800;
+  --border-t:rgba(0,0,0,0.12);--border-s:rgba(0,0,0,0.2);--border-p:rgba(0,0,0,0.35);
+  --r-md:8px;--r-lg:12px;--accent:#3a5bdc;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;
+    --text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;
+    --text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;
+    --border-t:rgba(255,255,255,0.1);--border-s:rgba(255,255,255,0.2);--border-p:rgba(255,255,255,0.35);
+    --accent:#7d9bff;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text-primary);background:var(--bg-secondary);min-height:100vh;}
+.wrap{max-width:960px;margin:0 auto;padding:2rem 1rem 4rem;}
+h1{font-size:22px;font-weight:500;margin-bottom:4px;}
+.sub{font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5;}
+.sub code{background:var(--bg-primary);padding:1px 5px;border-radius:4px;font-family:monospace;}
+.tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-t);padding-bottom:12px;flex-wrap:wrap;}
+.tab-btn{font-family:inherit;font-size:13.5px;font-weight:500;padding:8px 18px;border-radius:var(--r-md);border:none;background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text-primary);background:var(--bg-primary);}
+.tab-btn.active{background:var(--text-primary);color:var(--bg-primary);}
+.card{background:var(--bg-primary);border:0.5px solid var(--border-t);border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:12px;}
+.card-title{font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.card-title-right{font-size:11px;font-weight:400;color:var(--text-tertiary);text-transform:none;letter-spacing:0;flex-shrink:0;}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px dashed var(--border-s);border-radius:var(--r-md);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:border-color .15s;position:relative;}
+.drop:hover,.drop.dragover{border-color:var(--border-p);}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{width:32px;height:32px;border-radius:50%;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;}
+.drop-icon svg{width:16px;height:16px;stroke:var(--text-secondary);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.drop-label{font-size:13.5px;font-weight:500;}
+.drop-hint{font-size:11.5px;color:var(--text-tertiary);}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:4px;}
+.metric{background:var(--bg-secondary);border-radius:var(--r-md);padding:8px 10px;min-width:0;}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px;}
+.metric-val{font-size:13px;font-weight:500;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.btn{font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:var(--r-md);border:0.5px solid var(--border-s);background:transparent;color:var(--text-primary);cursor:pointer;transition:background .12s;white-space:nowrap;}
+.btn:hover:not(:disabled){background:var(--bg-secondary);}
+.btn:active:not(:disabled){transform:scale(0.98);}
+.btn:disabled{opacity:.35;cursor:default;}
+.btn-primary{background:var(--text-primary);color:var(--bg-primary);border-color:transparent;}
+.btn-primary:hover:not(:disabled){opacity:.88;background:var(--text-primary);}
+.btn-sm{font-size:11.5px;padding:5px 11px;border-radius:6px;}
+.status{font-size:13px;padding:7px 11px;border-radius:var(--r-md);margin-top:10px;background:var(--bg-secondary);color:var(--text-secondary);display:flex;align-items:flex-start;gap:6px;}
+.status.ok{background:var(--bg-success);color:var(--text-success);}
+.status.err{background:var(--bg-danger);color:var(--text-danger);}
+.status.warn{background:var(--bg-warn);color:var(--text-warn);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;margin-top:5px;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px;}
+.img-card{background:var(--bg-secondary);border-radius:var(--r-md);padding:10px;display:flex;flex-direction:column;gap:8px;}
+.img-canvas-wrap{background:
+  linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%),
+  linear-gradient(-45deg,rgba(128,128,128,.25) 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,rgba(128,128,128,.25) 75%),
+  linear-gradient(-45deg,transparent 75%,rgba(128,128,128,.25) 75%);
+  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;
+  border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:120px;}
+.img-canvas-wrap canvas{max-width:100%;height:auto;display:block;}
+.img-label{font-size:11.5px;font-weight:500;}
+.img-meta{font-size:10.5px;color:var(--text-tertiary);font-family:monospace;}
+.hint{font-size:11.5px;color:var(--text-tertiary);margin-top:8px;line-height:1.5;}
+.sel{font-family:inherit;font-size:12px;padding:6px 10px;border-radius:6px;border:0.5px solid var(--border-s);background:var(--bg-primary);color:var(--text-primary);max-width:100%;}
+.opts{display:flex;align-items:flex-end;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
+.opts label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:500;color:var(--text-secondary);min-width:0;}
+.opts label.chk{flex-direction:row;align-items:center;gap:6px;padding-bottom:6px;}
+.result-card{background:var(--bg-primary);border:0.5px solid var(--border-t);border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:12px;}
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.result-name{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.result-close{background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:14px;padding:2px 6px;}
+.result-close:hover{color:var(--text-primary);}
+.plat-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap;}
+.foot{font-size:11px;color:var(--text-tertiary);margin-top:24px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MT Framework TEX ↔ PNG Converter</h1>
+  <p class="sub">All conversion runs in a WebAssembly module (<span id="wasm-state">loading…</span>) whose header, platform, swizzle and pixel-format logic is ported from Kuriimu2's <code>plugin_mt_framework</code> (3DS, Switch, PS3, PS4, PC, Mobile). Files never leave your browser.</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-dec-btn" onclick="switchTab('dec')">TEX → PNG</button>
+    <button class="tab-btn" id="tab-enc-btn" onclick="switchTab('enc')">PNG → TEX</button>
+  </div>
+
+  <div id="tab-dec">
+    <div class="card">
+      <div class="card-title">Load binary .tex textures</div>
+      <div class="opts">
+        <label>Platform
+          <select class="sel" id="dec-plat"></select>
+        </label>
+      </div>
+      <label class="drop" id="drop-zone-dec">
+        <div class="drop-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <span class="drop-label">Click or drop binary .tex file(s)</span>
+        <span class="drop-hint">Magic <b>TEX␠</b>, <b>TEX\0</b> or <b>\0XET</b> (big-endian)</span>
+        <input type="file" id="file-input-dec" multiple>
+      </label>
+      <p class="hint">Versions 0x9D and 0xA3 are shared by several platforms; Auto picks the first candidate Kuriimu2 offers (0x9D → PC, 0xA3 → 3DS). Each result has its own platform selector to re-decode. Wii (bres container) is not supported, as in Kuriimu2.</p>
+    </div>
+    <div class="card" id="batch-card-dec" style="display:none">
+      <div class="card-title">Results <span class="card-title-right" id="batch-count-dec"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-download-all-dec" onclick="downloadAllZipDec()" disabled>Download all PNGs as .zip</button>
+        <button class="btn" onclick="clearAllDec()">Clear all</button>
+      </div>
+    </div>
+    <div id="results-dec"></div>
+  </div>
+
+  <div id="tab-enc" style="display:none">
+    <div class="card">
+      <div class="card-title">Target &amp; PNG files</div>
+      <div class="opts" id="enc-global"></div>
+      <label class="drop" id="drop-zone-enc">
+        <div class="drop-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <span class="drop-label">Click or drop .png file(s)</span>
+        <span class="drop-hint">One image, one mip level, written with the selected platform's header and swizzle</span>
+        <input type="file" id="file-input-enc" accept="image/*" multiple>
+      </label>
+      <p class="hint">Unknown header fields (e.g. the bitfield's <i>unk3</i>, floats in the 0x66/0x70 headers) are written as 0. Block-compressed encoders are simple bounding-box encoders; ETC1, BC7, PVRTC and ATC are decode-only.</p>
+    </div>
+    <div class="card" id="batch-card-enc" style="display:none">
+      <div class="card-title">Results <span class="card-title-right" id="batch-count-enc"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-download-all-enc" onclick="downloadAllZipEnc()" disabled>Download all .tex as .zip</button>
+        <button class="btn" onclick="clearAllEnc()">Clear all</button>
+      </div>
+    </div>
+    <div id="results-enc"></div>
+  </div>
+
+  <p class="foot">Core: <code>mt_tex.cpp</code> → <code>mt_tex.wasm</code> (clang, no libc). Ported from Kuriimu2 (plugin_mt_framework + Kanvas). BC7 / ATC / PVRTC block decoders from texture2ddecoder (MIT, © 2020 K0lb3). Decoding is cross-checked against texture2ddecoder for ETC1, DXT1/5, BC5, BC7 and PVRTC; platform swizzles and header layouts follow Kuriimu2's source but are not verified against real game files here.</p>
+</div>
+
+<script>
+const WASM_B64="__WASM_B64__";
+
+// ───────────── tiny zip writer (stored) ─────────────
+const CRC32T=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
+function crc32Bytes(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC32T[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function buildZip(files){
+  const enc=new TextEncoder(),local=[],central=[];let offset=0;
+  for(const f of files){
+    const nb=enc.encode(f.name),crc=crc32Bytes(f.data),size=f.data.length;
+    const lh=new Uint8Array(30+nb.length),dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint32(14,crc,true);dv.setUint32(18,size,true);dv.setUint32(22,size,true);dv.setUint16(26,nb.length,true);
+    lh.set(nb,30);local.push(lh,f.data);central.push({nb,crc,size,offset});offset+=lh.length+size;
+  }
+  const cparts=[];let csize=0;
+  for(const c of central){
+    const ch=new Uint8Array(46+c.nb.length),dv=new DataView(ch.buffer);
+    dv.setUint32(0,0x02014b50,true);dv.setUint16(4,20,true);dv.setUint16(6,20,true);dv.setUint32(16,c.crc,true);dv.setUint32(20,c.size,true);dv.setUint32(24,c.size,true);dv.setUint16(28,c.nb.length,true);dv.setUint32(42,c.offset,true);
+    ch.set(c.nb,46);cparts.push(ch);csize+=ch.length;
+  }
+  const end=new Uint8Array(22),dv=new DataView(end.buffer);
+  dv.setUint32(0,0x06054b50,true);dv.setUint16(8,central.length,true);dv.setUint16(10,central.length,true);dv.setUint32(12,csize,true);dv.setUint32(16,offset,true);
+  const out=new Uint8Array(offset+csize+22);let p=0;
+  for(const x of local){out.set(x,p);p+=x.length;}for(const x of cparts){out.set(x,p);p+=x.length;}out.set(end,p);return out;
+}
+
+// ───────────── helpers ─────────────
+const hex=(n,w=2)=>'0x'+(n>>>0).toString(16).toUpperCase().padStart(w,'0');
+function formatBytes(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function baseName(n){return n.replace(/\.[^.]+$/,'');}
+function slug(s){return s.replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toLowerCase();}
+function dlBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);}
+function canvasToPngBytes(c){return new Promise(r=>c.toBlob(b=>b.arrayBuffer().then(x=>r(new Uint8Array(x))),'image/png'));}
+function dedupe(list){const seen=new Map();return list.map(f=>{let n=f.name,c=seen.get(n)||0;if(c>0){const d=n.lastIndexOf('.');n=d>=0?n.slice(0,d)+'_'+c+n.slice(d):n+'_'+c;}seen.set(f.name,c+1);return{name:n,data:f.data};});}
+
+// ───────────── WASM bridge ─────────────
+let X=null;
+const heap=()=>new Uint8Array(X.memory.buffer);
+const cstr=p=>{const h=heap();let s='';while(h[p])s+=String.fromCharCode(h[p++]);return s;};
+const PLAT_IDS=[1,2,3,5,7,6,9,8,4]; // N3DS, Switch, PS3, PS4, PC, Mobile, PC v87, PC v70, PS3 v66
+async function initWasm(){
+  const bin=Uint8Array.from(atob(WASM_B64),c=>c.charCodeAt(0));
+  const {instance}=await WebAssembly.instantiate(bin,{});
+  X=instance.exports;
+  document.getElementById('wasm-state').textContent='ready · '+formatBytes(bin.length);
+}
+const platName=p=>cstr(X.mt_platform_name(p));
+const fmtName=(p,f)=>cstr(X.mt_fmt_name(p,f));
+
+function wasmDecode(bytes,plat){
+  X.mt_reset();
+  const p=X.mt_alloc(bytes.length);heap().set(bytes,p);
+  const rc=X.mt_decode(p,bytes.length,plat);
+  const R=new Int32Array(X.memory.buffer,X.mt_res_ptr(),512);
+  const info={plat:R[1],cand:R[2],version:R[3],fmt:R[4],w:R[5],h:R[6],mips:R[7],imgs:R[8],swizzle:R[9],be:R[11],hdr:R[12],gpu:R[13]};
+  if(rc<0)return{err:cstr(X.mt_err_ptr()),info};
+  const images=[];
+  for(let i=0;i<R[10];i++){
+    const o=16+i*8,w=R[o+1],h=R[o+2];
+    images.push({fmt:R[o],w,h,rgba:heap().slice(R[o+3],R[o+3]+w*h*4),name:fmtName(info.plat,R[o])});
+  }
+  return{info,images};
+}
+function wasmEncode(rgba,w,h,plat,ver,fmt,be){
+  X.mt_reset();
+  const p=X.mt_alloc(rgba.length);heap().set(rgba,p);
+  const q=X.mt_encode(p,w,h,plat,ver,fmt,be?1:0);
+  const R=new Int32Array(X.memory.buffer,X.mt_res_ptr(),512);
+  if(!q)return{err:cstr(X.mt_err_ptr())};
+  return{bytes:heap().slice(q,q+R[20])};
+}
+
+// ───────────── tabs ─────────────
+function switchTab(t){
+  document.getElementById('tab-dec-btn').classList.toggle('active',t==='dec');
+  document.getElementById('tab-enc-btn').classList.toggle('active',t==='enc');
+  document.getElementById('tab-dec').style.display=t==='dec'?'':'none';
+  document.getElementById('tab-enc').style.display=t==='enc'?'':'none';
+}
+function headHtml(id,name,kind){return `<div class="result-head"><span class="result-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><button class="result-close" onclick="removeCard('${id}','${kind}')">&#10005;</button></div>`;}
+
+// ───────────── DECODE UI ─────────────
+let decSeq=1;const decCards=new Map(); // id -> {exports:[{name,data}]}
+function removeCard(id,kind){document.getElementById(id)?.remove();(kind==='dec'?decCards:encCards).delete(id);refreshBatch(kind);}
+function refreshBatch(kind){
+  const cards=kind==='dec'?decCards:encCards;
+  const n=cards.size;
+  document.getElementById('batch-card-'+kind).style.display=n?'':'none';
+  document.getElementById('batch-count-'+kind).textContent=n?n+' file'+(n>1?'s':''):'';
+  document.getElementById('btn-download-all-'+kind).disabled=![...cards.values()].some(c=>c.ready());
+}
+function fillPlatSelect(sel,withAuto,selected){
+  sel.innerHTML=(withAuto?'<option value="-1">Auto-detect</option>':'')+PLAT_IDS.map(p=>`<option value="${p}">${escapeHtml(platName(p))}</option>`).join('');
+  if(selected!==undefined)sel.value=String(selected);
+}
+const dropDec=document.getElementById('drop-zone-dec'),inputDec=document.getElementById('file-input-dec');
+dropDec.addEventListener('dragover',e=>{e.preventDefault();dropDec.classList.add('dragover');});
+dropDec.addEventListener('dragleave',()=>dropDec.classList.remove('dragover'));
+dropDec.addEventListener('drop',e=>{e.preventDefault();dropDec.classList.remove('dragover');if(e.dataTransfer.files.length)loadDecFiles([...e.dataTransfer.files]);});
+inputDec.addEventListener('change',()=>{if(inputDec.files.length)loadDecFiles([...inputDec.files]);inputDec.value='';});
+
+async function loadDecFiles(files){for(const f of files)await loadOneDec(f);}
+async function loadOneDec(file){
+  const id='dec'+(decSeq++);
+  const card=document.createElement('div');card.className='result-card';card.id=id;
+  document.getElementById('results-dec').prepend(card);
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  const state={exports:[],ready(){return this.exports.length>0;}};
+  decCards.set(id,state);
+  await renderDec(card,id,file,bytes,state,parseInt(document.getElementById('dec-plat').value,10));
+}
+async function renderDec(card,id,file,bytes,state,platArg){
+  state.exports=[];
+  const res=wasmDecode(bytes,platArg);
+  const info=res.info;
+  let html=headHtml(id,file.name,'dec');
+  const platSel=`<div class="plat-row">Platform: <select class="sel" id="${id}-plat"></select><span id="${id}-ambig"></span></div>`;
+  if(res.err){
+    card.innerHTML=html+`<div class="status err"><span class="dot"></span><span>${escapeHtml(res.err)}</span></div>`+platSel;
+  }else{
+    const verStr=hex(info.version,2);
+    const metaRows=[
+      ['Dimensions',info.w+' × '+info.h],
+      ['Platform',platName(info.plat)],
+      ['Version',verStr],
+      ['Format code',hex(info.fmt,2)+' — '+fmtName(info.plat,info.fmt)],
+      ['Swizzle field',hex(info.swizzle,3)],
+      ['Mips / images',info.mips+' / '+info.imgs+' (base level shown)'],
+      ['Byte order',info.be?'Big-endian (\\0XET)':'Little-endian'],
+      ['File size',formatBytes(bytes.length)]
+    ];
+    if(info.plat===6)metaRows.push(['GPU-dependent',info.gpu?'yes':'no']);
+    html+=`<div class="meta-grid">`+metaRows.map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-val" title="${escapeHtml(v)}">${escapeHtml(v)}</div></div>`).join('')+`</div><div class="img-grid" id="${id}-grid"></div>`+platSel;
+    card.innerHTML=html;
+    const grid=document.getElementById(id+'-grid');
+    for(const img of res.images){
+      const canvas=document.createElement('canvas');canvas.width=img.w;canvas.height=img.h;
+      canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(img.rgba.buffer),img.w,img.h),0,0);
+      const multi=res.images.length>1;
+      const outName=baseName(file.name)+(multi?'_'+slug(img.name)+'_'+hex(img.fmt,2).slice(2).toLowerCase():'')+'.png';
+      const cell=document.createElement('div');cell.className='img-card';
+      cell.innerHTML=`<div class="img-canvas-wrap"></div><div class="img-label">${escapeHtml(img.name)} (${hex(img.fmt,2)})</div><div class="img-meta">${img.w}×${img.h} · PNG</div><div class="btn-row"><button class="btn btn-sm">Download PNG</button></div>`;
+      cell.querySelector('.img-canvas-wrap').appendChild(canvas);grid.appendChild(cell);
+      const png=await canvasToPngBytes(canvas);
+      state.exports.push({name:outName,data:png});
+      cell.querySelector('button').addEventListener('click',()=>dlBlob(new Blob([png],{type:'image/png'}),outName));
+    }
+  }
+  const sel=document.getElementById(id+'-plat');
+  fillPlatSelect(sel,true,platArg);
+  if(platArg<0&&info.plat&&!res.err)sel.options[0].textContent='Auto-detect → '+platName(info.plat);
+  if(info.cand){
+    const names=PLAT_IDS.filter(p=>info.cand&(1<<p)).map(platName).join(' / ');
+    document.getElementById(id+'-ambig').innerHTML=`<span style="color:var(--text-warn)">Version ${hex(info.version,2)} is shared by: ${escapeHtml(names)} — pick the right one if the picture looks scrambled.</span>`;
+  }
+  sel.addEventListener('change',()=>renderDec(card,id,file,bytes,state,parseInt(sel.value,10)));
+  refreshBatch('dec');
+}
+function clearAllDec(){document.getElementById('results-dec').innerHTML='';decCards.clear();refreshBatch('dec');}
+function downloadAllZipDec(){
+  const files=[];for(const c of decCards.values())files.push(...c.exports);
+  if(files.length)dlBlob(new Blob([buildZip(dedupe(files))],{type:'application/zip'}),'mt_framework_pngs.zip');
+}
+
+// ───────────── ENCODE UI ─────────────
+const ENC_VERSIONS={
+  1:[[0xa3,'0xA3 (sequential data, no mip table)'],[0xa4,'0xA4 (sequential data, no mip table)'],[0xa5,'0xA5 (mip offset table)'],[0xa6,'0xA6 (mip offset table)']],
+  2:[[0xa0,'0xA0'],[0xa1,'0xA1'],[0xa3,'0xA3']],
+  3:[[0x97,'0x97'],[0x9a,'0x9A'],[0x9d,'0x9D']],
+  4:[[0x66,'0x66']],
+  5:[[0x9d,'0x9D']],
+  6:[[0x09,'0x09']],
+  7:[[0xa3,'0xA3'],[0x9d,'0x9D']],
+  8:[[0x70,'0x70']],
+  9:[[0x87,'0x87']]
+};
+// Builds the platform/version/format/endian controls into `host`. Returns {get(), onchange(cb)}.
+function buildEncControls(host,init){
+  host.innerHTML=`<label>Platform<select class="sel" data-k="plat"></select></label><label>Header version<select class="sel" data-k="ver"></select></label><label>Pixel format<select class="sel" data-k="fmt"></select></label><label class="chk"><input type="checkbox" data-k="be"> Big-endian header (\\0XET)</label>`;
+  const q=k=>host.querySelector(`[data-k="${k}"]`);
+  const plat=q('plat'),ver=q('ver'),fmt=q('fmt'),be=q('be');
+  fillPlatSelect(plat,false,init.plat);
+  const cbs=[];
+  const fill=(keepFmt)=>{
+    const p=parseInt(plat.value,10);
+    const prevVer=ver.value;
+    ver.innerHTML=(ENC_VERSIONS[p]||[]).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+    if([...ver.options].some(o=>o.value===prevVer))ver.value=prevVer;
+    const prevFmt=keepFmt?fmt.value:null;
+    const n=X.mt_fmt_count(p);let opts='';
+    for(let i=0;i<n;i++){const id=X.mt_fmt_id(p,i);if(!X.mt_fmt_can_encode(p,id))continue;opts+=`<option value="${id}">${hex(id,2)} — ${escapeHtml(fmtName(p,id))}</option>`;}
+    fmt.innerHTML=opts;
+    if(prevFmt&&[...fmt.options].some(o=>o.value===prevFmt))fmt.value=prevFmt;
+  };
+  fill(false);
+  if(init.ver!==undefined)ver.value=String(init.ver);
+  if(init.fmt!==undefined&&[...fmt.options].some(o=>o.value===String(init.fmt)))fmt.value=String(init.fmt);
+  be.checked=!!init.be;
+  plat.addEventListener('change',()=>{fill(true);cbs.forEach(f=>f());});
+  [ver,fmt,be].forEach(e=>e.addEventListener('change',()=>cbs.forEach(f=>f())));
+  return{
+    get:()=>({plat:parseInt(plat.value,10),ver:parseInt(ver.value,10),fmt:parseInt(fmt.value,10),be:be.checked}),
+    onchange:cb=>cbs.push(cb)
+  };
+}
+let encSeq=1;const encCards=new Map();
+let globalEnc=null;
+const dropEnc=document.getElementById('drop-zone-enc'),inputEnc=document.getElementById('file-input-enc');
+dropEnc.addEventListener('dragover',e=>{e.preventDefault();dropEnc.classList.add('dragover');});
+dropEnc.addEventListener('dragleave',()=>dropEnc.classList.remove('dragover'));
+dropEnc.addEventListener('drop',e=>{e.preventDefault();dropEnc.classList.remove('dragover');if(e.dataTransfer.files.length)loadEncFiles([...e.dataTransfer.files]);});
+inputEnc.addEventListener('change',()=>{if(inputEnc.files.length)loadEncFiles([...inputEnc.files]);inputEnc.value='';});
+async function loadEncFiles(files){for(const f of files)await loadOneEnc(f);}
+async function loadOneEnc(file){
+  const id='enc'+(encSeq++);
+  const card=document.createElement('div');card.className='result-card';card.id=id;
+  document.getElementById('results-enc').prepend(card);
+  try{
+    const img=new Image();const url=URL.createObjectURL(file);img.src=url;
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('Could not read this file as an image.'));});
+    const w=img.naturalWidth,h=img.naturalHeight;
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);URL.revokeObjectURL(url);
+    const rgba=new Uint8Array(ctx.getImageData(0,0,w,h).data.buffer.slice(0));
+    card.innerHTML=headHtml(id,file.name,'enc')+
+      `<div class="meta-grid"><div class="metric"><div class="metric-label">Dimensions</div><div class="metric-val">${w} × ${h}</div></div><div class="metric"><div class="metric-label">Input PNG</div><div class="metric-val">${formatBytes(file.size)}</div></div><div class="metric"><div class="metric-label">Output .tex</div><div class="metric-val" id="${id}-size">–</div></div></div>`+
+      `<div class="img-grid"><div class="img-card" style="grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:16px"><div class="img-canvas-wrap" style="width:160px;flex-shrink:0"></div><div style="flex:1;min-width:260px"><div class="opts" id="${id}-ctl"></div><div class="btn-row"><button class="btn btn-primary btn-sm" id="${id}-dl">Download .tex</button></div></div></div></div><div id="${id}-msg"></div>`;
+    card.querySelector('.img-canvas-wrap').appendChild(canvas);
+    const ctl=buildEncControls(document.getElementById(id+'-ctl'),globalEnc.get());
+    const state={bytes:null,name:baseName(file.name)+'.tex',ready(){return !!this.bytes;}};
+    encCards.set(id,state);
+    const run=()=>{
+      const c=ctl.get();
+      const res=wasmEncode(rgba,w,h,c.plat,c.ver,c.fmt,c.be);
+      const msg=document.getElementById(id+'-msg'),sz=document.getElementById(id+'-size'),dl=document.getElementById(id+'-dl');
+      if(res.err){state.bytes=null;sz.textContent='–';dl.disabled=true;msg.innerHTML=`<div class="status err"><span class="dot"></span><span>${escapeHtml(res.err)}</span></div>`;}
+      else{
+        state.bytes=res.bytes;sz.textContent=formatBytes(res.bytes.length);dl.disabled=false;
+        const fmtName_=fmtName(c.plat,c.fmt);let warn='';
+        if(/DXT|BC|ATI/.test(fmtName_)&&(w%4||h%4))warn=`${w}×${h} is not a multiple of 4; edge blocks are padded by repeating border pixels.`;
+        msg.innerHTML=warn?`<div class="status warn"><span class="dot"></span><span>${warn}</span></div>`:'';
+      }
+      refreshBatch('enc');
+    };
+    ctl.onchange(run);
+    document.getElementById(id+'-dl').addEventListener('click',()=>{if(state.bytes)dlBlob(new Blob([state.bytes],{type:'application/octet-stream'}),state.name);});
+    run();
+  }catch(err){
+    card.innerHTML=headHtml(id,file.name,'enc')+`<div class="status err"><span class="dot"></span><span>${escapeHtml(err.message)}</span></div>`;
+  }
+}
+function clearAllEnc(){document.getElementById('results-enc').innerHTML='';encCards.clear();refreshBatch('enc');}
+function downloadAllZipEnc(){
+  const files=[];for(const c of encCards.values())if(c.bytes)files.push({name:c.name,data:c.bytes});
+  if(files.length)dlBlob(new Blob([buildZip(dedupe(files))],{type:'application/zip'}),'png_converted_mt_tex.zip');
+}
+
+// ───────────── boot ─────────────
+initWasm().then(()=>{
+  fillPlatSelect(document.getElementById('dec-plat'),true,-1);
+  globalEnc=buildEncControls(document.getElementById('enc-global'),{plat:7,ver:0xa3,fmt:0x17,be:false});
+}).catch(e=>{
+  document.getElementById('wasm-state').textContent='failed to load';
+  document.querySelector('.wrap').insertAdjacentHTML('afterbegin',`<div class="status err"><span class="dot"></span><span>WebAssembly failed to start: ${escapeHtml(e.message)}</span></div>`);
+});
+</script>
+</body>
+  </html>
